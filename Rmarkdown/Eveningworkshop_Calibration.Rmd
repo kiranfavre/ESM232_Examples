@@ -33,12 +33,13 @@ from a hydrologic model applied to a Sierra watershed
 
 ```{r simple}
 
-sager = read.table("../Data/sager.txt", header=T)
+sager = read.table("Data/sager.txt",
+                   header=T)
 head(sager)
 
 # add date
-sager = sager %>% mutate(date = paste(day,month,year, sep="/"))
-sager$date = as.Date(sager$date,"%d/%m/%Y")
+sager = sager %>% mutate(date = paste(day,month,year, sep="/")) #adding date col
+sager$date = as.Date(sager$date,"%d/%m/%Y")  #changing date format
 
 # plot
 sagerl = sager %>% pivot_longer(cols=c("model","obs"), names_to="source",
@@ -63,8 +64,6 @@ ggplot(sager, aes(obs, model))+geom_point()+geom_abline(intercept=0, slope=1, co
 - for the inputs to these functions, m=model and o=observation
 
 ```{r}
-
-
 source("../R/nse.R")
 
 source("../R/relerr.R")
@@ -93,7 +92,6 @@ Performance also depends on the 'what' you are evaluating
   * selection of particular periods of time
   
 
-  
 ```{r}
 # try a different time step
 sager_wy = sager %>% group_by(wy) %>% summarize(model=sum(model), obs=sum(obs))
@@ -111,15 +109,102 @@ cor(sager_aug$model, sager_aug$obs)
 
 ```
 
-# In Class Exercise
+# In Class Exercise -------------------------------------------------------
 
 * Read in the *sager.txt* data
+```{r}
+flow = read.table("Data/sager.txt",
+                   header=T)
+
+flow = flow %>% mutate(date = paste(day,month,year, sep="/")) #adding date col
+flow$date = as.Date(sager$date,"%d/%m/%Y")
+
+
+ggplot(data = flow,
+       aes(x = obs)) +
+  geom_histogram()
+
+median(sager$obs)
+summary(sager)
+```
+
 
 * Think of a new metric that might be interesting from a particular environmental context
 
+**We are interested in the difference in number of days the flow rate is above the 90% percentile of observations, which is 3.029, in the winter season (December - March) between the model and observations.**
+
+```{r}
+quantile(sager$obs,
+         probs = 0.9) 
+#3.028808 
+```
+
 * Code that metric as a function - and then apply it
+- inputs: 
+    - flow = data frame with model and obs flows with corresponding times 
+    - threshold (z) = 3.028808 
+- outputs: metric we are interest in... number of days that are above the extreme flow threshold that we determine
+
+```{r}
+days_model = flow %>% 
+    filter(month %in% c("1","2", "3", "12")) %>% 
+    select(model, month, year) %>% 
+  filter(model > 3.028808) %>% 
+  nrow()
+  
+```
+
+
+```{r}
+##think about: should we include a calculation for the threshold within the function
+
+compute_high_day_metrics <- function(days_model, days_obs, z = 3.028808){
+  #calculate # of days that model predicted above 90th percentile
+ days_model = flow %>% 
+    filter(month %in% c("1","2", "3", "12")) %>% 
+    select(model, month, year) %>% 
+  filter(model > 3.028808) %>% 
+  nrow()
+    
+  #calculate # of days that observations were above 90th percentile 
+   days_obs = flow %>% 
+    filter(month %in% c("1","2", "3", "12")) %>% 
+    select(obs, month, year) %>% 
+  filter(obs > 3.028808) %>% 
+  nrow()
+  
+  return(days_model - days_obs)
+}
+
+#subtract days above 90th percentile in model - days above 90th percentile in obs
+```
+
 
 # Using multiple metrics. 
+
+**Second matrix: Number of flow rates exceeding the 90th percentile of observations in a given year.**
+
+```{r}
+#testing a function for finding the number of flow rates exceeding the 90th percentile of observations in a given year
+compute_high_yr_metrics <- function(yr_model, yr_obs, z = 3.028808){
+  #calculate # of days that model predicted above 90th percentile
+ yr_model = flow %>% 
+    filter(month %in% c("1","2", "3", "12")) %>% 
+    select(model, month, year) %>% 
+  filter(model > 3.028808) %>% 
+  nrow()
+    
+  #calculate # of days that observations were above 90th percentile 
+   yr_obs = flow %>% 
+    filter(month %in% c("1","2", "3", "12")) %>% 
+    select(obs, month, year) %>% 
+  filter(obs > 3.028808) %>% 
+  nrow()
+  
+  return(yr_model - yr_obs)
+}
+```
+
 
 * depends on what you want the model to get right
 
